@@ -9,7 +9,7 @@ spec:
     server: https://kubernetes.default.svc
   project: default
   source:
-    path: argoselfmanaged/argocd-applications/overlays/development
+    path: argoselfmanaged/argocd-applications/base/deployments_development
     repoURL: https://github.com/coryleeio/k8sdev
     targetRevision: HEAD
 syncPolicy:

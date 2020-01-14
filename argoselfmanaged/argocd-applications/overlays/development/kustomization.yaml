@@ -1,4 +1,3 @@
 bases:
-- ../../base/deployments_development/
 - ../../base/meta_pipeline/
 namespace: argocd
