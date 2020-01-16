@@ -4,8 +4,20 @@ kind: ConfigMap
 metadata:
   name: app-config-cm
 data:
-  render-target.source: /etc/bare-config/app.yaml.hcl
-  render-target.target: /etc/rendered-config/app.yaml
+  consul-template.config: |
+    vault {
+      address = "http://localhost:8200"
+      token = "zzzzzzzzzzzz"
+      renew_token = false
+
+              retry {
+                backoff = "1s"
+              }
+            }
+            template {
+              source = /etc/bare-config/app.yaml.hcl
+              destination = /etc/rendered-config/app.yaml
+            }
   app.yaml.hcl: |
     ---
     A: B
@@ -50,13 +62,13 @@ spec:
                 configMapKeyRef:
                   name: app-config-cm
                   # Specify the key associated with the value
-                  key: render-target.source
+                  key: config-render.source
             - name: RENDER_TARGET
               valueFrom:
                 configMapKeyRef:
                   name: app-config-cm
                   # Specify the key associated with the value
-                  key: render-target.target
+                  key: config-render.target
           volumeMounts:
           - name: configmap-volume
             mountPath: /etc/bare-config
@@ -68,7 +80,5 @@ spec:
         command: [ "/bin/bash", "-c", "--" ]
         args: [ "while true; cat /etc/rendered-config/app.yaml; echo 'still sleepin'; do sleep 30; done;" ]
         volumeMounts:
-        - name: configmap-volume
-          mountPath: /etc/bare-config
         - name: rendered-config-volume
           mountPath: /etc/rendered-config/
