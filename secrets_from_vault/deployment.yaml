@@ -9,15 +9,12 @@ data:
       address = "http://localhost:8200"
       token = "zzzzzzzzzzzz"
       renew_token = false
+    }
 
-              retry {
-                backoff = "1s"
-              }
-            }
-            template {
-              source = /etc/bare-config/app.yaml.hcl
-              destination = /etc/rendered-config/app.yaml
-            }
+    template {
+      source = "/etc/bare-config/app.yaml.hcl"
+      destination = "/etc/rendered-config/app.yaml"
+    }
   app.yaml.hcl: |
     ---
     A: B
@@ -54,26 +51,12 @@ spec:
           image: hashicorp/consul-template:0.20.0-light
           imagePullPolicy: IfNotPresent
           command: [ "/bin/sh", "-c", "--" ]
-          args: [ "/bin/consul-template -template \"${RENDER_SOURCE}:${RENDER_TARGET}\" -once" ]
-          env:
-            # Define the environment variable
-            - name: RENDER_SOURCE
-              valueFrom:
-                configMapKeyRef:
-                  name: app-config-cm
-                  # Specify the key associated with the value
-                  key: config-render.source
-            - name: RENDER_TARGET
-              valueFrom:
-                configMapKeyRef:
-                  name: app-config-cm
-                  # Specify the key associated with the value
-                  key: config-render.target
+          args: [ "/bin/consul-template -config /etc/bare-config/consul-template.config -once" ]
           volumeMounts:
           - name: configmap-volume
             mountPath: /etc/bare-config
           - name: rendered-config-volume
-            mountPath: /etc/rendered-config/
+            mountPath: /etc/rendered-config
       containers:
       - name: demo
         image: ubuntu:latest
