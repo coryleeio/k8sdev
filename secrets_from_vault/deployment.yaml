@@ -1,13 +1,18 @@
 ---
 apiVersion: v1
+kind: ServiceAccount
+metadata:
+  namespace: default
+  name: app-sa
+---
+apiVersion: v1
 kind: ConfigMap
 metadata:
   name: app-config-cm
 data:
   consul-template.config: |
     vault {
-      address = "http://localhost:8200"
-      token = "zzzzzzzzzzzz"
+      address = "http://vault.vault:8200"
       renew_token = false
     }
 
@@ -17,26 +22,27 @@ data:
     }
   app.yaml.hcl: |
     ---
-    A: B
-    B: C
+    A: {{ with secret "kv/myapp/config" }}{{ .Data.data.username }}{{ end }}
+    B: {{ with secret "kv/myapp/config" }}{{ .Data.data.password }}{{ end }}
     D: E
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: demo-deployment
+  name: app-deployment
   labels:
-    app: demo
+    app: app
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: demo
+      app: app
   template:
     metadata:
       labels:
-        app: demo
+        app: app
     spec:
+      serviceAccount: app-sa
       volumes:
         - name: configmap-volume
           configMap:
@@ -46,19 +52,18 @@ spec:
         - name: rendered-config-volume
           emptyDir: # Store in memory since we will render secrets here
             medium: Memory
-      initContainers:
-        - name: consul-template
-          image: hashicorp/consul-template:0.20.0-light
-          imagePullPolicy: IfNotPresent
-          command: [ "/bin/sh", "-c", "--" ]
-          args: [ "/bin/consul-template -config /etc/bare-config/consul-template.config -once" ]
-          volumeMounts:
-          - name: configmap-volume
-            mountPath: /etc/bare-config
-          - name: rendered-config-volume
-            mountPath: /etc/rendered-config
       containers:
-      - name: demo
+      - name: consul-template
+        image: hashicorp/consul-template:0.20.0-light
+        imagePullPolicy: IfNotPresent
+        command: [ "/bin/sh", "-c", "--" ]
+        args: [ "export VAULT_TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token); env; /bin/consul-template -config /etc/bare-config/consul-template.config" ]
+        volumeMounts:
+        - name: configmap-volume
+          mountPath: /etc/bare-config
+        - name: rendered-config-volume
+          mountPath: /etc/rendered-config
+      - name: app
         image: ubuntu:latest
         command: [ "/bin/bash", "-c", "--" ]
         args: [ "while true; cat /etc/rendered-config/app.yaml; echo 'still sleepin'; do sleep 30; done;" ]
