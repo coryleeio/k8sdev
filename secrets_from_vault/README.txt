@@ -36,19 +36,5 @@ vault write auth/kubernetes/role/app-role bound_service_account_names=app-sa bou
 # Run the example it will create the service account which can auth
 
 # It will assign the service account to the consul-template init container which will use it to auth to vault and then render the config into an in memory volume.
-k apply -f ../secrets_from_vault/deployment.yaml 
-
-
-
-Need to get the vault token in an automated fashion, but the following works:
-Exec into the consul-template container then do:
-
-SA_TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token);
-apk add --no-cache curl jq;
-LOGIN_RESPONSE=$(curl \
-    --request POST \
-    --data "{\"jwt\": \"$SA_TOKEN\", \"role\": \"app-role\"}" \
-    http://vault.vault:8200/v1/auth/kubernetes/login);
-VAULT_TOKEN=$(echo $LOGIN_RESPONSE | jq '.auth.client_token' -r);
-/bin/consul-template -config /etc/bare-config/consul-template.config
-
+kubectl apply -f ../secrets_from_vault/deployment.yaml 
+kubectl logs -f POD_NAME

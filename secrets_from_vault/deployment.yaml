@@ -10,6 +10,7 @@ kind: ConfigMap
 metadata:
   name: app-config-cm
 data:
+  consul-template.vault_role: app-role
   consul-template.config: |
     vault {
       address = "http://vault.vault:8200"
@@ -56,6 +57,13 @@ spec:
         - name: consul-template
           image: hashicorp/consul-template:0.20.0-light
           imagePullPolicy: IfNotPresent
+          env:
+            # Define the environment variable
+            - name: VAULT_ROLE
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config-cm
+                  key: consul-template.vault_role
           command:
           - /bin/sh
           - -c
@@ -64,7 +72,7 @@ spec:
             apk add --no-cache curl jq;
             export LOGIN_RESPONSE=$(curl \
                 --request POST \
-                --data "{\"jwt\": \"$SA_TOKEN\", \"role\": \"app-role\"}" \
+                --data "{\"jwt\": \"$SA_TOKEN\", \"role\": \"$VAULT_ROLE\"}" \
                 http://vault.vault:8200/v1/auth/kubernetes/login);
             export VAULT_TOKEN=$(echo $LOGIN_RESPONSE | jq '.auth.client_token' -r);
             /bin/consul-template -config /etc/bare-config/consul-template.config -once
